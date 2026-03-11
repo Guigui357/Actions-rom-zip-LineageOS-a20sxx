@@ -1,4 +1,4 @@
-name: Build LineageOS
+name: Build GSI
 
 on:
   workflow_dispatch:
@@ -13,54 +13,40 @@ jobs:
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/share/boost
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo rm -rf /usr/local/lib/android
         df -h
 
-    - name: Install dependencies
+    - name: Install packages
       run: |
         sudo apt update
-        sudo apt install -y git repo openjdk-11-jdk bc bison build-essential curl flex g++ \
-        gcc-multilib g++-multilib gnupg gperf imagemagick lib32ncurses5-dev \
-        lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev \
-        libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool \
-        squashfs-tools xsltproc zip zlib1g-dev ccache
+        sudo apt install -y git repo openjdk-11-jdk \
+        bc bison build-essential curl flex g++ gcc-multilib \
+        g++-multilib gnupg gperf imagemagick lib32ncurses5-dev \
+        lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev \
+        libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop \
+        pngcrush rsync schedtool squashfs-tools xsltproc zip \
+        zlib1g-dev
 
-    - name: Setup git
+    - name: Setup repo
       run: |
-        git config --global user.email "github@actions.com"
-        git config --global user.name "github-actions"
-
-    - name: Init Lineage source
-      run: |
-        mkdir lineage
-        cd lineage
-        repo init -u https://github.com/LineageOS/android.git -b lineage-18.1
+        mkdir gsi
+        cd gsi
+        repo init -u https://github.com/LineageOS/android.git -b lineage-20
 
     - name: Sync source
       run: |
-        cd lineage
-        repo sync -c -j8
+        cd gsi
+        repo sync -c -j8 --no-tags --no-clone-bundle
 
-    - name: Clone device tree
+    - name: Build GSI
       run: |
-        cd lineage
-        git clone https://gitgud.io/fw-dumps/samsung/a20s.git device/samsung/a20s
-
-    - name: Enable ccache
-      run: |
-        export USE_CCACHE=1
-        ccache -M 50G
-
-    - name: Build ROM
-      run: |
-        cd lineage
+        cd gsi
         source build/envsetup.sh
-        lunch lineage_a20s-userdebug
-        make bacon -j8
+        lunch lineage_arm64-userdebug
+        make systemimage -j8
 
-    - name: Upload ROM
+    - name: Upload GSI
       uses: actions/upload-artifact@v4
       with:
-        name: lineage_a20s
-        path: lineage/out/target/product/a20s/*.zip
+        name: lineage_gsi
+        path: gsi/out/target/product/generic_arm64/system.img
