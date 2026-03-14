@@ -43,7 +43,7 @@ jobs:
         cd gsi
         git clone https://gitgud.io/GUGUGSI/a20sxx-gsi-a207m.git
         mkdir -p device/samsung/a20s
-        cp -r a20sxx-gsi-a207m/lineage_device_tree/* device/samsung/a20s/
+        cp -r a20sxx-gsi-a207m/lineage-device-tree/* device/samsung/a20s/
 
     - name: Build
       run: |
