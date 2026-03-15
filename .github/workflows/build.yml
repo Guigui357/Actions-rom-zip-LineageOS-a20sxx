@@ -42,15 +42,17 @@ jobs:
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan gitgud.io >> ~/.ssh/known_hosts
+    
     - name: Sparse-checkout lineage-device-tree
       run: |
         mkdir -p ~/a20s-lineage
         cd ~/a20s-lineage
         git init
-        git remote add origin $DT_REPO_SSH
+        git remote add origin git@gitgud.io:GUGUGSI/a20sxx-gsi-a207m.git
         git sparse-checkout init --cone
         git sparse-checkout set lineage-device-tree
-        git pull origin main
+        git fetch origin a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys --depth=1
+        git checkout a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys
 
     - name: Clone Kernel C
       run: |
