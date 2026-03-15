@@ -25,11 +25,7 @@ jobs:
           device-tree-compiler \
           android-sdk-libsparse-utils \
           cpio curl zip python3
-
-    - name: Download mkbootimg
-      run: |
-        sudo apt install android-sdk-libsparse-utils
-
+    
     - name: Clone kernel
       run: |
         git clone --depth=1 $KERNEL_REPO kernel
@@ -39,52 +35,6 @@ jobs:
         cd kernel
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-
         make a20s_eur_open_defconfig
+        make -j4 dtboimg bootimg
 
-        scripts/config --disable MODULE_SIG
-        scripts/config --disable MODULE_SIG_ALL
-        scripts/config --disable SYSTEM_TRUSTED_KEYS
-        scripts/config --disable SYSTEM_REVOCATION_KEYS
-        
-        make olddefconfig
-        
-        make -j4 KCFLAGS=-fcommon HOSTCFLAGS=-fcommon
-
-    - name: Collect DTB files
-      run: |
-        mkdir dtb
-        find kernel/arch/arm64/boot/dts -name "*.dtb" -exec cp {} dtb/ \;
-
-    - name: Create dtbo.img
-      run: |
-        mkdtimg create dtbo.img dtb/*.dtb
-
-    - name: Create minimal ramdisk
-      run: |
-        mkdir ramdisk
-        echo '#!/bin/sh' > ramdisk/init
-        echo 'exec /init' >> ramdisk/init
-        chmod +x ramdisk/init
-
-        cd ramdisk
-        find . | cpio -o -H newc > ../ramdisk.cpio
-
-    - name: Build boot.img
-      run: |
-        mkbootimg \
-          --kernel kernel/arch/arm64/boot/Image.gz \
-          --ramdisk ramdisk.cpio \
-          --base 0x10000000 \
-          --pagesize 2048 \
-          --os_version 11 \
-          --header_version 1 \
-          --output boot.img
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: A20s_boot_dtbo
-        path: |
-          boot.img
-          dtbo.img
