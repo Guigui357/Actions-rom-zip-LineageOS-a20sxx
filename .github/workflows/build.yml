@@ -33,7 +33,7 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
         make $DEFCONFIG
-        make -j$THREADS Image.gz dtbo.img
+        make -j$THREADS Image.gz dtbo
 
     - name: Generate boot.img
       run: |
