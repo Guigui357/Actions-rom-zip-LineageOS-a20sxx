@@ -36,8 +36,6 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
         make a20s_eur_open_defconfig
-        scripts/config 
-        make -j4 dtboimg bootimg
         scripts/config --disable CONFIG_BT
         scripts/config --disable CONFIG_BT_BCM
         scripts/config --disable CONFIG_BT_HCIBTUSB
@@ -45,6 +43,8 @@ jobs:
         scripts/config --disable CONFIG_BT_BTFM
         scripts/config --disable CONFIG_BT_LE
         scripts/config --disable CONFIG_BT_RFCOMM
+        make olddefconfig
+        make -j4 dtboimg bootimg
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
