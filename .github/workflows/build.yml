@@ -36,5 +36,20 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
         make a20s_eur_open_defconfig
+        scripts/config 
         make -j4 dtboimg bootimg
-
+        scripts/config --disable CONFIG_BT
+        scripts/config --disable CONFIG_BT_BCM
+        scripts/config --disable CONFIG_BT_HCIBTUSB
+        scripts/config --disable CONFIG_BT_HCIUART
+        scripts/config --disable CONFIG_BT_BTFM
+        scripts/config --disable CONFIG_BT_LE
+        scripts/config --disable CONFIG_BT_RFCOMM
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: a20s-kernel-build
+        path: |
+          kernel/arch/arm64/boot/boot.img
+          kernel/arch/arm64/boot/dtbo.img
