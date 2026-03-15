@@ -33,7 +33,7 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
         make $DEFCONFIG
-        make -j$THREADS Image.gz
+        make -j$THREADS Image.gz KCFLAGS=-fcommon HOSTCFLAGS=-fcommon
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
