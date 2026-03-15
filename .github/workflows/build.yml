@@ -52,4 +52,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: a20s-boot
-        path: kernel/boot.img
+        path: kernel/Image.gz
