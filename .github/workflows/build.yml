@@ -1,59 +1,78 @@
-name: Build GSI
+name: Build A20s ROM in Root
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  build-rom:
+    runs-on: ubuntu-latest
+    env:
+      DEVICE: a20s
+      LINEAGE_BRANCH: lineage-20.0
+      DT_REPO_SSH: git@gitgud.io:GUGUGSI/a20sxx-gsi-a207m.git
+      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
+      VENDOR_REPO: https://github.com/GalaxyA20s/vendor_samsung_a20s.git
+      THREADS: 4
+      OUTPUT_DIR: ~/a20s-lineage/zip/samsung/$DEVICE
 
     steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
-    - name: Free disk space
-      run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/lib/android
-        df -h
+    - name: Setup SSH key
+      uses: webfactory/ssh-agent@v0.8.1
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Install packages
+    - name: Install Build Tools
       run: |
         sudo apt update
-        sudo apt install -y git repo openjdk-11-jdk \
-        bc bison build-essential curl flex g++ gcc-multilib \
-        g++-multilib gnupg gperf imagemagick lib32ncurses5-dev \
-        lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev \
-        libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop \
-        pngcrush rsync schedtool squashfs-tools xsltproc zip \
-        zlib1g-dev
+        sudo apt install -y build-essential zip unzip curl git-core \
+        openjdk-11 flex bison gperf zlib1g-dev gcc-multilib g++-multilib \
+        libc6-dev-i386 libncurses5 libncurses5-dev x11proto-core-dev \
+        libx11-dev libreadline-dev libgl1-mesa-dev libxml2-utils xsltproc \
+        python3 python3-pip cpio abootimg
 
-    - name: Init repo
+    - name: Repo init & sync
       run: |
-        mkdir gsi
-        cd gsi
-        repo init -u https://github.com/LineageOS/android.git -b lineage-18.1
+        cd ~/a20s-lineage
+        repo init -u https://github.com/LineageOS/android.git -b $LINEAGE_BRANCH
+        repo sync -c -j$THREADS --verbose
 
-    - name: Sync source
+    - name: Clone device tree
       run: |
-        cd gsi
-        repo sync -c -j8 --no-tags --no-clone-bundle
+        mkdir -p ~/a20s-lineage/device/samsung
+        git clone $DT_REPO_SSH ~/a20s-lineage/device/samsung/$DEVICE
 
-    - name: Add device tree
+    - name: Clone kernel
       run: |
-        cd gsi
-        git clone https://gitgud.io/GUGUGSI/a20sxx-gsi-a207m.git
-        mkdir -p device/samsung/a20s
-        cp -r a20sxx-gsi-a207m/lineage-device-tree/* device/samsung/a20s/
+        mkdir -p ~/a20s-lineage/kernel
+        git clone $KERNEL_REPO ~/a20s-lineage/kernel/$DEVICE
 
-    - name: Build
+    - name: Clone vendor blobs
       run: |
-        cd gsi
+        mkdir -p ~/a20s-lineage/vendor/samsung
+        git clone $VENDOR_REPO ~/a20s-lineage/vendor/samsung/$DEVICE
+
+    - name: Setup build environment
+      run: |
+        cd ~/a20s-lineage
         source build/envsetup.sh
-        lunch lineage_a20s-userdebug
-        mka bacon
+        lunch lineage_${DEVICE}-userdebug
 
-    - name: Upload
-      uses: actions/upload-artifact@v4
+    - name: Compile ROM with mka bacon
+      run: |
+        cd ~/a20s-lineage
+        mka bacon -j$THREADS
+
+    - name: Move final ZIP to organized folder
+      run: |
+        mkdir -p $OUTPUT_DIR
+        ZIP_FILE=$(find ~/a20s-lineage/out/target/product/$DEVICE -maxdepth 1 -name "*$DEVICE*.zip" | head -n 1)
+        cp $ZIP_FILE $OUTPUT_DIR/A20s_ROM.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
       with:
-        name: lineage_build
-        path: gsi/out/target/product/a20s
+        name: A20s_ROM
+        path: $OUTPUT_DIR/A20s_ROM.zip
