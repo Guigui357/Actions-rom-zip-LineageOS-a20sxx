@@ -87,10 +87,10 @@ jobs:
         cp ~/a20s-lineage/boot.img $OUTPUT_DIR/
         cp ~/a20s-lineage/out-dtb/dtb.img $OUTPUT_DIR/
         cat > $OUTPUT_DIR/META-INF/com/google/android/updater-script <<EOF
-ui_print("Flashing A20s minimal boot + dtb");
-package_extract_file("boot.img", "/dev/block/by-name/boot");
-package_extract_file("dtb.img", "/dev/block/by-name/dtb");
-EOF
+        ui_print("Flashing A20s minimal boot + dtb");
+        package_extract_file("boot.img", "/dev/block/by-name/boot");
+        package_extract_file("dtb.img", "/dev/block/by-name/dtb");
+        EOF
         cd $OUTPUT_DIR
         zip -r ../A20s_ROM.zip *
         cd ~/a20s-lineage
