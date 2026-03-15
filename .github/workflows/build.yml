@@ -1,4 +1,4 @@
-name: Build A20s boot + dtbo
+name: Build A20s Boot + DTBO
 
 on:
   workflow_dispatch:
@@ -11,45 +11,45 @@ jobs:
       KERNEL_REPO: https://github.com/Guigui357/android_kernel_samsung_a20sxx_old.git
       DEVICE: a20s
       THREADS: 4
+      DEFCONFIG: a20s_eur_open_defconfig
+      CMDLINE: "console=ttyHSL0,115200,n8 androidboot.hardware=qcom" # ajustar se tiver cmdline oficial
 
     steps:
-
     - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-          git bc bison flex \
-          build-essential \
-          gcc-aarch64-linux-gnu \
-          libssl-dev libncurses-dev \
-          device-tree-compiler \
-          android-sdk-libsparse-utils \
+          git bc bison flex build-essential \
+          gcc-aarch64-linux-gnu libssl-dev libncurses-dev \
+          device-tree-compiler android-sdk-libsparse-utils \
           cpio curl zip python3
-    
-    - name: Clone kernel
-      run: |
-        git clone --depth=1 $KERNEL_REPO kernel
 
-    - name: Compile kernel
+    - name: Clone kernel
+      run: git clone --depth=1 $KERNEL_REPO kernel
+
+    - name: Build kernel
       run: |
         cd kernel
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make a20s_eur_open_defconfig
-        scripts/config --disable CONFIG_BT
-        scripts/config --disable CONFIG_BT_BCM
-        scripts/config --disable CONFIG_BT_HCIBTUSB
-        scripts/config --disable CONFIG_BT_HCIUART
-        scripts/config --disable CONFIG_BT_BTFM
-        scripts/config --disable CONFIG_BT_LE
-        scripts/config --disable CONFIG_BT_RFCOMM
-        make olddefconfig
-        make -j4 bootimg
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+        make $DEFCONFIG
+        make -j$THREADS Image.gz dtbo.img
+
+    - name: Generate boot.img
+      run: |
+        cd kernel
+        if [ ! -f boot.img ]; then
+          mkbootimg \
+            --kernel arch/arm64/boot/Image.gz \
+            --ramdisk ramdisk.img \  # se tiver ramdisk separado, ou initramfs
+            --dtb arch/arm64/boot/dts/qcom/*.dtb \
+            --cmdline "$CMDLINE" \
+            --base 0x80000000 \
+            -o boot.img
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
       with:
-        name: a20s-kernel-build
-        path: |
-          kernel/arch/arm64/boot/boot.img
-          kernel/arch/arm64/boot/dtbo.img
+        name: a20s-boot
+        path: kernel/boot.img
