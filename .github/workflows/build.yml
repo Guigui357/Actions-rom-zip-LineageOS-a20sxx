@@ -38,6 +38,10 @@ jobs:
           python3 python3-pip \
           cpio abootimg device-tree-compiler
 
+    - name: Add gitgud.io to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan gitgud.io >> ~/.ssh/known_hosts
     - name: Sparse-checkout lineage-device-tree
       run: |
         mkdir -p ~/a20s-lineage
