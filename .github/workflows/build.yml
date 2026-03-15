@@ -21,15 +21,9 @@ jobs:
           libssl-dev libncurses-dev device-tree-compiler android-sdk-libsparse-utils \
           cpio curl zip python3
 
-    - name: Setup swap
-      run: |
-        sudo fallocate -l $SWAP_SIZE /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        swapon --show
-        free -h
-
+    - name: View RAM (debug)
+      run: cat /proc/meminfo | grep MemTotal
+      
     - name: Clone kernel
       run: git clone --depth=1 $KERNEL_REPO kernel
 
