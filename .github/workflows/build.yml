@@ -34,7 +34,7 @@ jobs:
     - name: Install mkbootimg + avbtool
       run: |
         git clone https://github.com/osm0sis/mkbootimg.git
-        gcc mkbootimg/mkbootimg.c -o mkbootimg/mkbootimg
+        gcc mkbootimg/mkbootimg.c -o mkbootimg/mkbootimg -lcrypto -lssl
         sudo cp mkbootimg/mkbootimg /usr/local/bin/
         sudo chmod +x /usr/local/bin/mkbootimg
 
