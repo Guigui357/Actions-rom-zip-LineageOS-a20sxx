@@ -42,6 +42,12 @@ jobs:
         export CROSS_COMPILE=aarch64-linux-gnu-
 
         make a20s_eur_open_defconfig
+
+        scripts/config --disable MODULE_SIG
+        scripts/config --disable MODULE_SIG_ALL
+        scripts/config --disable SYSTEM_TRUSTED_KEYS
+        scripts/config --disable SYSTEM_REVOCATION_KEYS
+        
         make -j$THREADS
 
     - name: Collect DTB files
