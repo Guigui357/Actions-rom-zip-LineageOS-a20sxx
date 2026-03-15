@@ -1,88 +1,139 @@
-name: Build A20s Full Boot + DTB
+name: Build A20s Boot DTBO VBMeta
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-boot:
+  build:
     runs-on: ubuntu-latest
+
     env:
       DEVICE: a20s
-      DT_LINK: "https://gitgud.io/GUGUGSI/a20sxx-gsi-a207m/-/archive/a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys/a20sxx-gsi-a207m-a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys.tar.gz?ref_type=heads&path=lineage-device-tree"
-      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
       THREADS: 4
-      OUTPUT_DIR: ~/a20s-lineage/zip/samsung/$DEVICE
+      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
+      DT_LINK: https://gitgud.io/GUGUGSI/a20sxx-gsi-a207m/-/archive/a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys/a20sxx-gsi-a207m-a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys.tar.gz
 
     steps:
-    - name: Checkout workflow repo
+
+    - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Install build dependencies
+    - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y \
-          build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-          zip unzip curl git \
-          openjdk-17-jdk flex bison gperf zlib1g-dev \
-          libncurses-dev libx11-dev libreadline-dev libgl1-mesa-dev \
-          libxml2-utils xsltproc python3 python3-pip \
-          cpio abootimg device-tree-compiler
+        sudo apt install -y 
+        git curl zip unzip bc 
+        build-essential 
+        gcc-aarch64-linux-gnu 
+        flex bison 
+        libssl-dev libncurses5-dev 
+        libelf-dev dwarves 
+        device-tree-compiler 
+        cpio python3
 
-    - name: Download only lineage-device-tree
+    - name: Install mkbootimg + avbtool
       run: |
-        mkdir -p ~/a20s-lineage/lineage-device-tree
-        cd ~/a20s-lineage/lineage-device-tree
-        curl -L "$DT_LINK" | tar -xz --strip-components=3
+        git clone https://github.com/osm0sis/mkbootimg.git
+        sudo cp mkbootimg/mkbootimg /usr/local/bin/
+        sudo chmod +x /usr/local/bin/mkbootimg
 
-    - name: Clone Kernel C shallow
-      run: |
-        mkdir -p ~/a20s-lineage/kernel
-        git clone --depth=1 $KERNEL_REPO ~/a20s-lineage/kernel/$DEVICE
+        git clone https://github.com/AndroidBootloader/platform_external_avb
+        sudo cp platform_external_avb/avbtool /usr/local/bin/
+        sudo chmod +x /usr/local/bin/avbtool
 
-    - name: Create minimal ramdisk
+    - name: Download lineage-device-tree
       run: |
-        mkdir -p ~/a20s-lineage/ramdisk_root
-        echo -e "#!/bin/sh\nexit 0" > ~/a20s-lineage/ramdisk_root/init
-        chmod +x ~/a20s-lineage/ramdisk_root/init
-        cd ~/a20s-lineage/ramdisk_root
-        find . | cpio -o -H newc > ../ramdisk.cpio
+        mkdir ~/device
+        cd ~/device
+
+        curl -L $DT_LINK -o dt.tar.gz
+        tar -xzf dt.tar.gz
+
+        mv /lineage-device-tree ./a20s-tree
+
+    - name: Clone kernel
+      run: |
+        mkdir ~/kernel
+        git clone --depth=1 $KERNEL_REPO ~/kernel/$DEVICE
 
     - name: Compile kernel
       run: |
-        cd ~/a20s-lineage/kernel/$DEVICE
-        make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$THREADS \
-            Image.gz dtbs
+        cd ~/kernel/$DEVICE
 
-    - name: Generate dtb.img
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+
+        make O=out exynos7885-a20s_defconfig
+        make O=out -j$THREADS
+
+    - name: Collect DTB
       run: |
-        mkdir -p ~/a20s-lineage/out-dtb
-        mkdtimg create ~/a20s-lineage/out-dtb/dtb.img \
-          --page_size 2048 arch/arm64/boot/dts/vendor/samsung/*.dtb
+        mkdir ~/dtb
+        find ~/kernel/$DEVICE/out -name ".dtb" -exec cp {} ~/dtb/ ;
+
+        cat ~/dtb/.dtb > ~/dtb.img
+
+    - name: Create DTBO image
+      run: |
+        mkdir ~/dtbo
+        find ~/kernel/$DEVICE/out -name ".dtbo" -exec cp {} ~/dtbo/ ; || true
+
+        if ls ~/dtbo/.dtbo 1> /dev/null 2>&1; then
+          cat ~/dtbo/.dtbo > /dtbo.img
+        else
+          dd if=/dev/zero of=/dtbo.img bs=1M count=1
+        fi
+
+    - name: Create ramdisk
+      run: |
+        mkdir ~/ramdisk
+        echo '#!/system/bin/sh' > ~/ramdisk/init
+        echo 'exec /init' >> ~/ramdisk/init
+        chmod +x ~/ramdisk/init
+
+        cd ~/ramdisk
+        find . | cpio -H newc -o > /ramdisk.cpio
 
     - name: Build boot.img
       run: |
-        KERNEL_IMG=~/a20s-lineage/kernel/$DEVICE/out/arch/arm64/boot/Image.gz
-        mkbootimg --kernel $KERNEL_IMG \
-                  --ramdisk ~/a20s-lineage/ramdisk.cpio \
-                  --dtb ~/a20s-lineage/out-dtb/dtb.img \
-                  --output ~/a20s-lineage/boot.img
+        KERNEL=/kernel/$DEVICE/out/arch/arm64/boot/Image.gz
 
-    - name: Create flashable ZIP
+        mkbootimg 
+        --kernel $KERNEL 
+        --ramdisk ~/ramdisk.cpio 
+        --dtb ~/dtb.img 
+        --base 0x10000000 
+        --pagesize 2048 
+        --output ~/boot.img
+
+    - name: Create vbmeta disabled
       run: |
-        mkdir -p $OUTPUT_DIR/META-INF/com/google/android
-        cp ~/a20s-lineage/boot.img $OUTPUT_DIR/
-        cp ~/a20s-lineage/out-dtb/dtb.img $OUTPUT_DIR/
-        cat > $OUTPUT_DIR/META-INF/com/google/android/updater-script <<EOF
-        ui_print("Flashing A20s full boot + dtb");
+        avbtool make_vbmeta_image 
+        --flags 2 
+        --padding_size 4096 
+        --output ~/vbmeta.img
+
+    - name: Create flashable zip
+      run: |
+        mkdir -p ~/zip/META-INF/com/google/android
+
+        cp ~/boot.img ~/zip/
+        cp ~/dtbo.img ~/zip/
+        cp ~/vbmeta.img ~/zip/
+
+        cat > ~/zip/META-INF/com/google/android/updater-script <<EOF
+        ui_print("Flashing boot dtbo vbmeta for A20s");
         package_extract_file("boot.img", "/dev/block/by-name/boot");
-        package_extract_file("dtb.img", "/dev/block/by-name/dtb");
+        package_extract_file("dtbo.img", "/dev/block/by-name/dtbo");
+        package_extract_file("vbmeta.img", "/dev/block/by-name/vbmeta");
+        ui_print("Done");
         EOF
-        cd $OUTPUT_DIR
-        zip -r ../A20s_ROM.zip *
-        cd ~/a20s-lineage
+
+        cd ~/zip
+        zip -r ~/A20s_flash_bundle.zip *
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: A20s_Full_ROM
-        path: $OUTPUT_DIR/../A20s_ROM.zip
+        name: A20s_flash_bundle
+        path: ~/A20s_flash_bundle.zip
