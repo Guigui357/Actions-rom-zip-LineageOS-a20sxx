@@ -33,20 +33,7 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
         make $DEFCONFIG
-        make -j$THREADS Image.gz dtbo
-
-    - name: Generate boot.img
-      run: |
-        cd kernel
-        if [ ! -f boot.img ]; then
-          mkbootimg \
-            --kernel arch/arm64/boot/Image.gz \
-            --ramdisk ramdisk.img \  # se tiver ramdisk separado, ou initramfs
-            --dtb arch/arm64/boot/dts/qcom/*.dtb \
-            --cmdline "$CMDLINE" \
-            --base 0x80000000 \
-            -o boot.img
-        fi
+        make -j$THREADS Image.gz
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
