@@ -15,7 +15,7 @@ jobs:
 
     steps:
     - name: Checkout workflow repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@v3
 
     - name: Setup SSH key
       uses: webfactory/ssh-agent@v0.8.0
@@ -89,7 +89,7 @@ jobs:
         cd ~/a20s-lineage
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: A20s_Minimal_ROM
         path: $OUTPUT_DIR/../A20s_ROM.zip
