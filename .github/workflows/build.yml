@@ -10,7 +10,7 @@ jobs:
     env:
       KERNEL_REPO: https://github.com/Guigui357/android_kernel_samsung_a20sxx_old.git
       DEVICE: a20s
-      THREADS: 4
+      THREADS: 2
       SWAP_SIZE: 6G
     steps:
 
@@ -49,7 +49,7 @@ jobs:
         scripts/config --disable CONFIG_BT_LEDS
         scripts/config --disable CONFIG_BT_DEBUGFS
         yes "" | make olddefconfig
-        make -j$THREADS Image.gz
+        make -j$THREADS Image.gz KCFLAGS=-fcommon HOSTCFLAGS=-fcommon
         
         
 
