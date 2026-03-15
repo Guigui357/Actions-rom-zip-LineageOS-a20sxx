@@ -47,7 +47,7 @@ jobs:
         scripts/config --disable CONFIG_BT_RFCOMM
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: a20s-kernel-build
         path: |
