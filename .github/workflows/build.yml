@@ -1,4 +1,4 @@
-name: Build A20s Boot DTBO VBMeta
+name: Build A20s boot + dtbo
 
 on:
   workflow_dispatch:
@@ -8,134 +8,76 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
       DEVICE: a20s
       THREADS: 4
-      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
-      DT_LINK: https://gitgud.io/GUGUGSI/a20sxx-gsi-a207m/-/archive/a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys/a20sxx-gsi-a207m-a20sxx-user-11-RP1A.200720.012-A207FXXU5CWH1-release-keys.tar.gz
 
     steps:
-
-    - name: Checkout
-      uses: actions/checkout@v3
 
     - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-        git curl zip unzip bc \
-        build-essential \
-        gcc-aarch64-linux-gnu \
-        flex bison \
-        libssl-dev libncurses5-dev \
-        libelf-dev dwarves \
-        device-tree-compiler \
-        cpio python3
+          git bc bison flex \
+          build-essential \
+          gcc-aarch64-linux-gnu \
+          libssl-dev libncurses-dev \
+          device-tree-compiler \
+          android-sdk-libsparse-utils \
+          cpio curl zip python3
 
-    - name: Install mkbootimg + avbtool
+    - name: Download mkbootimg
       run: |
-        sudo apt install libssl-dev
-        git clone https://github.com/osm0sis/mkbootimg.git
-        gcc mkbootimg/mkbootimg.c -o mkbootimg/mkbootimg -lcrypto -lssl
-        sudo cp mkbootimg/mkbootimg /usr/local/bin/
-        sudo chmod +x /usr/local/bin/mkbootimg
-
-        git clone https://github.com/AndroidBootloader/platform_external_avb
-        sudo cp platform_external_avb/avbtool /usr/local/bin/
-        sudo chmod +x /usr/local/bin/avbtool
-
-    - name: Download lineage-device-tree
-      run: |
-        mkdir ~/device
-        cd ~/device
-
-        curl -L $DT_LINK -o dt.tar.gz
-        tar -xzf dt.tar.gz
-
-        mv /lineage-device-tree ./a20s-tree
+        curl -L https://raw.githubusercontent.com/osm0sis/mkbootimg/master/mkbootimg -o mkbootimg
+        chmod +x mkbootimg
 
     - name: Clone kernel
       run: |
-        mkdir ~/kernel
-        git clone --depth=1 $KERNEL_REPO ~/kernel/$DEVICE
+        git clone --depth=1 $KERNEL_REPO kernel
 
     - name: Compile kernel
       run: |
-        cd ~/kernel/$DEVICE
-
+        cd kernel
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
 
-        make O=out exynos7885-a20s_defconfig
-        make O=out -j$THREADS
+        make a20s_defconfig
+        make -j$THREADS
 
-    - name: Collect DTB
+    - name: Collect DTB files
       run: |
-        mkdir ~/dtb
-        find ~/kernel/$DEVICE/out -name ".dtb" -exec cp {} ~/dtb/ ;
+        mkdir dtb
+        find kernel/arch/arm64/boot/dts -name "*.dtb" -exec cp {} dtb/ \;
 
-        cat ~/dtb/.dtb > ~/dtb.img
-
-    - name: Create DTBO image
+    - name: Create dtbo.img
       run: |
-        mkdir ~/dtbo
-        find ~/kernel/$DEVICE/out -name ".dtbo" -exec cp {} ~/dtbo/ ; || true
+        mkdtimg create dtbo.img dtb/*.dtb
 
-        if ls ~/dtbo/.dtbo 1> /dev/null 2>&1; then
-          cat ~/dtbo/.dtbo > /dtbo.img
-        else
-          dd if=/dev/zero of=/dtbo.img bs=1M count=1
-        fi
-
-    - name: Create ramdisk
+    - name: Create minimal ramdisk
       run: |
-        mkdir ~/ramdisk
-        echo '#!/system/bin/sh' > ~/ramdisk/init
-        echo 'exec /init' >> ~/ramdisk/init
-        chmod +x ~/ramdisk/init
+        mkdir ramdisk
+        echo '#!/bin/sh' > ramdisk/init
+        echo 'exec /init' >> ramdisk/init
+        chmod +x ramdisk/init
 
-        cd ~/ramdisk
-        find . | cpio -H newc -o > /ramdisk.cpio
+        cd ramdisk
+        find . | cpio -o -H newc > ../ramdisk.cpio
 
     - name: Build boot.img
       run: |
-        KERNEL=/kernel/$DEVICE/out/arch/arm64/boot/Image.gz
+        ./mkbootimg \
+          --kernel kernel/arch/arm64/boot/Image.gz \
+          --ramdisk ramdisk.cpio \
+          --base 0x10000000 \
+          --pagesize 2048 \
+          --os_version 11 \
+          --header_version 1 \
+          --output boot.img
 
-        mkbootimg 
-        --kernel $KERNEL 
-        --ramdisk ~/ramdisk.cpio 
-        --dtb ~/dtb.img 
-        --base 0x10000000 
-        --pagesize 2048 
-        --output ~/boot.img
-
-    - name: Create vbmeta disabled
-      run: |
-        avbtool make_vbmeta_image 
-        --flags 2 
-        --padding_size 4096 
-        --output ~/vbmeta.img
-
-    - name: Create flashable zip
-      run: |
-        mkdir -p ~/zip/META-INF/com/google/android
-
-        cp ~/boot.img ~/zip/
-        cp ~/dtbo.img ~/zip/
-        cp ~/vbmeta.img ~/zip/
-
-        cat > ~/zip/META-INF/com/google/android/updater-script <<EOF
-        ui_print("Flashing boot dtbo vbmeta for A20s");
-        package_extract_file("boot.img", "/dev/block/by-name/boot");
-        package_extract_file("dtbo.img", "/dev/block/by-name/dtbo");
-        package_extract_file("vbmeta.img", "/dev/block/by-name/vbmeta");
-        ui_print("Done");
-        EOF
-
-        cd ~/zip
-        zip -r ~/A20s_flash_bundle.zip *
-
-    - name: Upload artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: A20s_flash_bundle
-        path: ~/A20s_flash_bundle.zip
+        name: A20s_boot_dtbo
+        path: |
+          boot.img
+          dtbo.img
