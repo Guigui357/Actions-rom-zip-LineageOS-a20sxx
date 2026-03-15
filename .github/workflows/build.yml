@@ -50,7 +50,7 @@ jobs:
         
         make olddefconfig
         
-        make -j$THREADS
+        make -j4 KCFLAGS=-fcommon HOSTCFLAGS=-fcommon
 
     - name: Collect DTB files
       run: |
