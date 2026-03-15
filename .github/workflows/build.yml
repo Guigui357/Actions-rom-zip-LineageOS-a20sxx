@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      KERNEL_REPO: https://github.com/goldfish07/android_kernel_samsung_a20sxx_old.git
+      KERNEL_REPO: https://github.com/Guigui357/android_kernel_samsung_a20sxx_old.git
       DEVICE: a20s
       THREADS: 4
 
@@ -41,7 +41,7 @@ jobs:
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
 
-        make a20s_defconfig
+        make a20s_eur_open_defconfig
         make -j$THREADS
 
     - name: Collect DTB files
