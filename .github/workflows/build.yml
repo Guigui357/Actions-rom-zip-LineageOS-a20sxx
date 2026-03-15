@@ -1,4 +1,4 @@
-name: Build A20s Boot + DTBO
+name: Build A20s boot
 
 on:
   workflow_dispatch:
@@ -11,32 +11,56 @@ jobs:
       KERNEL_REPO: https://github.com/Guigui357/android_kernel_samsung_a20sxx_old.git
       DEVICE: a20s
       THREADS: 4
-      DEFCONFIG: a20s_eur_open_defconfig
-      CMDLINE: "console=ttyHSL0,115200,n8 androidboot.hardware=qcom" # ajustar se tiver cmdline oficial
-
+      SWAP_SIZE: 6G
     steps:
+
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y \
-          git bc bison flex build-essential \
-          gcc-aarch64-linux-gnu libssl-dev libncurses-dev \
-          device-tree-compiler android-sdk-libsparse-utils \
+        sudo apt install -y git bc bison flex build-essential gcc-aarch64-linux-gnu \
+          libssl-dev libncurses-dev device-tree-compiler android-sdk-libsparse-utils \
           cpio curl zip python3
+
+    - name: Setup swap
+      run: |
+        sudo fallocate -l $SWAP_SIZE /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        swapon --show
+        free -h
 
     - name: Clone kernel
       run: git clone --depth=1 $KERNEL_REPO kernel
 
-    - name: Build kernel
+    - name: Set defconfig
       run: |
         cd kernel
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make $DEFCONFIG
-        make -j$THREADS Image.gz KCFLAGS=-fcommon HOSTCFLAGS=-fcommon
+        make a20s_eur_open_defconfig
 
-    - name: Upload artifacts
+    - name: Compile kernel
+      run: |
+        cd kernel
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        scripts/config --disable CONFIG_BT
+        scripts/config --disable CONFIG_BT_HCIBTUSB
+        scripts/config --disable CONFIG_BT_HCIUART
+        scripts/config --disable CONFIG_BT_BCM
+        scripts/config --disable CONFIG_BT_RTL
+        scripts/config --disable CONFIG_BT_BNEP
+        scripts/config --disable CONFIG_BT_RFCOMM
+        scripts/config --disable CONFIG_BT_LEDS
+        scripts/config --disable CONFIG_BT_DEBUGFS
+        yes "" | make olddefconfig
+        make -j$THREADS Image.gz
+        
+        
+
+    - name: Upload boot image
       uses: actions/upload-artifact@v4
       with:
-        name: a20s-boot
-        path: kernel/Image.gz
+        name: kernel-image
+        path: kernel/arch/arm64/boot/Image.gz
