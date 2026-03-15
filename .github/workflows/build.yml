@@ -28,8 +28,7 @@ jobs:
 
     - name: Download mkbootimg
       run: |
-        curl -L https://raw.githubusercontent.com/osm0sis/mkbootimg/master/mkbootimg -o mkbootimg
-        chmod +x mkbootimg
+        sudo apt install android-sdk-libsparse-utils
 
     - name: Clone kernel
       run: |
@@ -73,7 +72,7 @@ jobs:
 
     - name: Build boot.img
       run: |
-        ./mkbootimg \
+        mkbootimg \
           --kernel kernel/arch/arm64/boot/Image.gz \
           --ramdisk ramdisk.cpio \
           --base 0x10000000 \
