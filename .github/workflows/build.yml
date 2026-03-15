@@ -96,7 +96,7 @@ EOF
         cd ~/a20s-lineage
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: A20s_Minimal_ROM
         path: $OUTPUT_DIR/../A20s_ROM.zip
