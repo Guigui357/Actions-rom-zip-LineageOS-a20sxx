@@ -27,13 +27,6 @@ jobs:
     - name: Clone kernel
       run: git clone --depth=1 $KERNEL_REPO kernel
 
-    - name: Set defconfig
-      run: |
-        cd kernel
-        export ARCH=arm64
-        export CROSS_COMPILE=aarch64-linux-gnu-
-        make a20s_eur_open_defconfig
-
     - name: Compile kernel
       run: |
         cd kernel
