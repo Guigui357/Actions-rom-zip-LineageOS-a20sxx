@@ -30,7 +30,7 @@ jobs:
     - name: Compile kernel
       run: |
         cd kernel
-        git clone -b google --single-branch https://github.com/GrowtopiaJaw/aarch64-linux-android-4.9.git aarch64-linux-android-4.9
+        git clone https://github.com/Adrilaw/aarch64-linux-android-4.9-toolchain.git
         bash build_kernel.sh
         
 
