@@ -33,10 +33,18 @@ jobs:
         git clone https://github.com/Adrilaw/aarch64-linux-android-4.9-toolchain.git
         export DTC_EXT=/usr/bin/dtc
         bash build_kernel.sh
-        zip -r out/ out.zip
 
-    - name: Upload boot image
-      uses: actions/upload-artifact@v4
+    - name: Collect all kernel images
+      run: |
+        mkdir -p artifact_upload
+        echo "Procurando todos os image.* dentro de out/..."
+        find out/ -type f -name "image.*" -exec cp --parents {} artifact_upload/ \;
+        echo "Arquivos encontrados:"
+        find artifact_upload/
+      shell: bash
+
+    - name: Upload kernel images
+      uses: actions/upload-artifact@v3
       with:
-        name: kernel-image
-        path: out.zip
+          name: kernel-images
+          path: artifact_upload/
