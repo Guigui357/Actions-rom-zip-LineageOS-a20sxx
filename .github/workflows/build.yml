@@ -44,7 +44,7 @@ jobs:
       shell: bash
 
     - name: Upload kernel images
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
           name: kernel-images
           path: artifact_upload/
