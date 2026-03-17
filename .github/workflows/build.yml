@@ -34,17 +34,8 @@ jobs:
         export DTC_EXT=/usr/bin/dtc
         bash build_kernel.sh
 
-    - name: Collect all kernel images
-      run: |
-        mkdir -p artifact_upload
-        echo "Procurando todos os image.* dentro de out/..."
-        find out/ -type f -name "image.*" -exec cp --parents {} artifact_upload/ \;
-        echo "Arquivos encontrados:"
-        find artifact_upload/
-      shell: bash
-
     - name: Upload kernel images
       uses: actions/upload-artifact@v4
       with:
           name: kernel-images
-          path: artifact_upload/
+          path: /home/runner/work/Actions-rom-zip-LineageOS-a20sxx/Actions-rom-zip-LineageOS-a20sxx/kernel/out/
